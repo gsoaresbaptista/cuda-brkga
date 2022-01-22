@@ -1,0 +1,1 @@
+from .knapsackProblem import KnapsackProblem

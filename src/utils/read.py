@@ -1,7 +1,8 @@
-from typing import List, Tuple
+import cupy as cp
+from typing import Tuple
 
 
-def read_cvrp_file(file_path: str) -> Tuple[List, List]:
+def read_cvrp_file(file_path: str) -> Tuple[cp.ndarray, cp.ndarray]:
     coord_section = False
     demand_section = False
     coords = []
@@ -31,7 +32,7 @@ def read_cvrp_file(file_path: str) -> Tuple[List, List]:
     return coords, demands
 
 
-def read_knapsack_file(file_path: str) -> Tuple[List, List]:
+def read_knapsack_file(file_path: str) -> Tuple[cp.ndarray, cp.ndarray]:
     weights = []
     profits = []
 
