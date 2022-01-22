@@ -42,4 +42,10 @@ def read_knapsack_file(file_path: str) -> Tuple[cp.ndarray, cp.ndarray]:
             weights.append(float(weight))
             profits.append(float(profit))
 
-    return weights, profits
+    max_weight = weights[0]
+    weights = cp.array(weights, dtype=cp.float32)[1:]
+    profits = cp.array(profits, dtype=cp.float32)[1:]
+    infos = cp.dstack((weights, profits)).reshape(weights.shape[0], 2)
+    infos = cp.ascontiguousarray(infos)
+
+    return max_weight, infos

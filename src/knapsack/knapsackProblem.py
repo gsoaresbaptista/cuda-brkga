@@ -1,6 +1,5 @@
 import cupy as cp
 from brkga.problem import Problem
-from .kernel import decoder as decoder_function
 
 
 class KnapsackProblem(Problem):
@@ -14,13 +13,6 @@ class KnapsackProblem(Problem):
             population_size: int,
             gene_size: int) -> cp.ndarray:
         #
-        output = cp.zeros((population_size, gene_size), dtype=cp.float32)
-
-        # decoder_function(
-        #     self.bpg, self.tpb,
-        #     (population, output, gene_size))
-
-        # return output
         return cp.floor(population + 0.5)
 
     def fitness(
@@ -29,6 +21,9 @@ class KnapsackProblem(Problem):
             info: cp.ndarray,
             population_size: int,
             gene_size: int) -> cp.ndarray:
+        #
         value = population.dot(info[:, 1])
-        penalty = cp.power(cp.maximum(0, population.dot(info[:, 0]) - self.__max_weight), 2) * value
+        penalty = cp.maximum(0, (population.dot(info[:, 0])
+                             - self.__max_weight)) * value
+
         return value - penalty

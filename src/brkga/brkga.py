@@ -1,6 +1,5 @@
-from typing import List
-from click import progressbar
 import cupy as cp
+from typing import List
 from tqdm.autonotebook import tqdm
 from .problem import Problem
 from .kernel import crossover
@@ -42,7 +41,7 @@ class BRKGA:
         self.__population_size = p
         self.__elite_population = int(p * pe)
         self.__mutants_population = int(p * pm)
-        self.__rest_population = int(p * (1 - pe - pm))
+        self.__rest_population = int(p * (1.0 - pe - pm))
 
     def fit_input(self, info: List) -> None:
         if self.__rhoe == 0.0:
@@ -57,7 +56,7 @@ class BRKGA:
             dtype=cp.float32)
 
         #
-        tpb = (32, 32) if self.__info.shape[0] >= 32 else (1, 1)
+        tpb = (16, 16) if self.__info.shape[0] >= 16 else (1, 1)
         bpg = (self.__population_size // tpb[0] + 1,
                self.__gene_size // tpb[0] + 1)
 
@@ -70,6 +69,7 @@ class BRKGA:
     def run(
             self,
             generations: int,
+            verbose: bool = False,
             bar_style: str = "{l_bar}{bar:30}{r_bar}{bar:-30b}") -> None:
         #
         progress_bar = tqdm(range(generations), bar_format=bar_style)
@@ -81,6 +81,24 @@ class BRKGA:
             progress_bar.set_description(
                 f"Value: {self.__best_value:.4f}")
             progress_bar.update()
+
+        if verbose:
+            title = Style.BRIGHT + Fore.LIGHTMAGENTA_EX
+            print(Style.BRIGHT + '--------- INFO ---------')
+            text = title + 'Population:\n' + Style.RESET_ALL
+            text += f"  Total: {self.__population_size}\n"
+            text += f"  Elites: {self.__elite_population}\n"
+            text += f"  Mutants: {self.__mutants_population}"
+            print(text)
+
+            text = title + 'Best value:\n' + Style.RESET_ALL
+            text += f"  {self.__best_value:.4f}"
+            print(text)
+
+            elapsed = progress_bar.format_dict['elapsed']
+            text = title + 'Total time:\n' + Style.RESET_ALL
+            text += f"  {float(elapsed):.4f} seconds"
+            print(text)
 
     def step(self) -> None:
         decoded_population = self.__problem.decoder(
@@ -137,7 +155,15 @@ class BRKGA:
         #
         commons_idx = cp.random.randint(0, rp, rp)
         elites_idx = cp.random.randint(0, ep, rp)
-        crossover(self.__bpg, self.__tpb, (percentages, commons[commons_idx], elites[elites_idx], output, cp.uint32(self.__gene_size), cp.uint32(self.__rhoe)))
+        crossover(
+            self.__bpg, self.__tpb,
+            (percentages,
+             commons[commons_idx],
+             elites[elites_idx],
+             output,
+             cp.uint32(self.__gene_size),
+             cp.uint32(self.__rest_population),
+             cp.float32(self.__rhoe)))
         #
         next_population[ep + mp:, :] = output
         self.__population = next_population
