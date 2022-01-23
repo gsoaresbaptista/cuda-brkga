@@ -17,6 +17,7 @@ if __name__ == "__main__":
     parser.add_argument("-pe", "--elite_percentage", default=0.2, type=float)
     parser.add_argument("-pm", "--mutants_percentage", default=0.1, type=float)
     parser.add_argument("-re", "--rhoe", default=0.7, type=float)
+    parser.add_argument("-mp", "--multiparent", type=bool, default=False)
     parser.add_argument("--seed", type=int)
     args = parser.parse_args()
 
@@ -43,7 +44,7 @@ if __name__ == "__main__":
             text += f'Failed to load {problem.__class__.__name__}!'
             print(text)
 
-        brkga = BRKGA(problem, maximize)
+        brkga = BRKGA(problem, gene_size, args.multiparent, maximize)
 
         if args.seed is not None:
             brkga.set_seed(args.seed)
@@ -53,7 +54,7 @@ if __name__ == "__main__":
             args.elite_percentage,
             args.mutants_percentage,
             args.rhoe)
-        brkga.fit_input(infos, gene_size)
+        brkga.fit_input(infos)
         brkga.run(args.generations, verbose=True)
     else:
         raise Exception('File not exist.')

@@ -2,14 +2,18 @@ import cupy as cp
 from typing import List
 from tqdm.autonotebook import tqdm
 from .problem import Problem
-from .kernel import crossover
+from .kernel import crossover, crossover_mp
 from colorama import Fore, Style
 
 
 class BRKGA:
-    def __init__(self, problem: Problem, maximize: bool = True) -> None:
+    def __init__(
+            self,
+            problem: Problem,
+            gene_size: int,
+            mp: bool = False,
+            maximize: bool = True) -> None:
         self.__problem = problem
-        self.__gene_size = 0
         self.__population_size = 0
         self.__elite_population = 0
         self.__mutants_population = 0
@@ -22,6 +26,8 @@ class BRKGA:
         self.__bpg = (0, 0)
         self.__best_value = 0
         self.__best_individual = None
+        self.__gene_size = gene_size
+        self.__mp = mp
 
     @property
     def best_value(self) -> float:
@@ -46,14 +52,14 @@ class BRKGA:
         self.__mutants_population = int(p * pm)
         self.__rest_population = int(p * (1.0 - pe - pm))
 
-    def fit_input(self, info: List, gene_size: int) -> None:
+    def fit_input(self, info: List) -> None:
         if self.__rhoe == 0.0:
             raise Exception(
                 "Set population parameters before fitting to input.")
 
         self.__info = cp.array(info, dtype=cp.float32)
-        self.__gene_size = gene_size
-        self.__population = cp.random.random(
+        self.__population = cp.random.uniform(
+            low=0, high=1,
             size=(self.__population_size, self.__gene_size),
             dtype=cp.float32)
 
@@ -144,7 +150,7 @@ class BRKGA:
         rp = self.__rest_population
 
         next_population[:ep, :] = elites
-        next_population[ep:ep + mp, :] = mutants
+        next_population[ep:ep + mp, :] = mutants[:, :]
 
         #
         percentages = cp.random.uniform(
@@ -155,17 +161,27 @@ class BRKGA:
         output = cp.zeros((rp, self.__gene_size), dtype=cp.float32)
 
         #
-        commons_idx = cp.random.randint(0, rp, rp)
-        elites_idx = cp.random.randint(0, ep, rp)
-        crossover(
-            self.__bpg, self.__tpb,
-            (percentages,
-             commons[commons_idx],
-             elites[elites_idx],
-             output,
-             cp.uint32(self.__gene_size),
-             cp.uint32(self.__rest_population),
-             cp.float32(self.__rhoe)))
+        elites_idx = cp.random.choice(elites.shape[0], rp, True)
+
+        if not self.__mp:
+            crossover_function = crossover
+            commons_idx = cp.random.choice(commons.shape[0], rp, False)
+        else:
+            crossover_function = crossover_mp
+            commons_idx = cp.concatenate((
+                cp.random.choice(commons.shape[0], rp, False),
+                cp.random.choice(commons.shape[0], rp, False)))
+
+        crossover_function(
+                self.__bpg, self.__tpb,
+                (percentages,
+                 commons[commons_idx],
+                 elites[elites_idx],
+                 output,
+                 cp.uint32(self.__gene_size),
+                 cp.uint32(self.__rest_population),
+                 cp.float32(self.__rhoe)))
+
         #
         next_population[ep + mp:, :] = output
         self.__population = next_population
