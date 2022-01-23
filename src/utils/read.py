@@ -1,12 +1,13 @@
 import cupy as cp
-from typing import Tuple
+from typing import List, Tuple
 
 
-def read_cvrp_file(file_path: str) -> Tuple[cp.ndarray, cp.ndarray]:
-    coord_section = False
-    demand_section = False
-    coords = []
-    demands = []
+def read_cvrp_file(file_path: str) -> cp.ndarray:
+    coord_section: bool = False
+    demand_section: bool = False
+    max_capacity: float = 0
+    coords: List = []
+    demands: List = []
 
     with open(file_path, 'r') as file:
         for line in file.readlines():
@@ -23,16 +24,23 @@ def read_cvrp_file(file_path: str) -> Tuple[cp.ndarray, cp.ndarray]:
             elif text == "DEPOT_SECTION":
                 break
 
+            elif "CAPACITY" in text:
+                max_capacity = float(text.split(' ')[-1])
+
             elif coord_section:
                 coords.append([float(x) for x in text.split(' ')])
 
             elif demand_section:
                 demands.append([float(x) for x in text.split(' ')])
 
-    return coords, demands
+    coords = cp.array(coords, dtype=cp.float32)[:, 1:]
+    demands = cp.array(demands, dtype=cp.float32)[:, 1:]
+    infos = cp.concatenate((coords, demands), axis=1)
+
+    return max_capacity, infos
 
 
-def read_knapsack_file(file_path: str) -> Tuple[cp.ndarray, cp.ndarray]:
+def read_knapsack_file(file_path: str) -> Tuple[float, cp.ndarray]:
     weights = []
     profits = []
 
@@ -45,7 +53,7 @@ def read_knapsack_file(file_path: str) -> Tuple[cp.ndarray, cp.ndarray]:
     max_weight = weights[0]
     weights = cp.array(weights, dtype=cp.float32)[1:]
     profits = cp.array(profits, dtype=cp.float32)[1:]
-    infos = cp.dstack((weights, profits)).reshape(weights.shape[0], 2)
+    infos = cp.dstack((weights, profits)).reshape(len(weights), 2)
     infos = cp.ascontiguousarray(infos)
 
     return max_weight, infos

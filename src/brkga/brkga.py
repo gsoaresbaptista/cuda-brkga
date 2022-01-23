@@ -31,6 +31,9 @@ class BRKGA:
     def best_individual(self) -> cp.ndarray:
         return self.__best_individual
 
+    def set_seed(self, seed: int) -> None:
+        cp.random.seed(seed)
+
     def fit_population(
             self, p: int,
             pe: float,
@@ -43,20 +46,19 @@ class BRKGA:
         self.__mutants_population = int(p * pm)
         self.__rest_population = int(p * (1.0 - pe - pm))
 
-    def fit_input(self, info: List) -> None:
+    def fit_input(self, info: List, gene_size: int) -> None:
         if self.__rhoe == 0.0:
             raise Exception(
                 "Set population parameters before fitting to input.")
 
         self.__info = cp.array(info, dtype=cp.float32)
-        self.__gene_size = self.__info.shape[0]
-        self.__population = cp.random.uniform(
-            low=0, high=1,
+        self.__gene_size = gene_size
+        self.__population = cp.random.random(
             size=(self.__population_size, self.__gene_size),
             dtype=cp.float32)
 
         #
-        tpb = (16, 16) if self.__info.shape[0] >= 16 else (1, 1)
+        tpb = (32, 32) if self.__info.shape[0] >= 32 else (1, 1)
         bpg = (self.__population_size // tpb[0] + 1,
                self.__gene_size // tpb[0] + 1)
 

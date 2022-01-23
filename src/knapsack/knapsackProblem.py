@@ -3,7 +3,7 @@ from brkga.problem import Problem
 
 
 class KnapsackProblem(Problem):
-    def __init__(self, max_weight: int) -> None:
+    def __init__(self, max_weight: float) -> None:
         self.__max_weight = max_weight
         super().__init__()
 
@@ -22,8 +22,8 @@ class KnapsackProblem(Problem):
             population_size: int,
             gene_size: int) -> cp.ndarray:
         #
-        value = population.dot(info[:, 1])
-        penalty = cp.maximum(0, (population.dot(info[:, 0])
-                             - self.__max_weight)) * value
+        values = population.dot(info[:, 1])
+        penalties = cp.maximum(0, (population.dot(info[:, 0])
+                               - self.__max_weight)) * values
 
-        return value - penalty
+        return values - penalties
