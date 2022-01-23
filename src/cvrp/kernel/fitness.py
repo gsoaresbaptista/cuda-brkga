@@ -19,8 +19,6 @@ fitness = cp.RawKernel(r'''
         float fx = info[0], fy = info[1];
         float lx = info[0], ly = info[1];
         float total = 0, capacity = 0;
-        //printf("fx: %f | fy: %f\n", lx, ly);
-
 
         int id;
         float x, y;
