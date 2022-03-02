@@ -24,6 +24,15 @@ class Problem(ABC):
         self.__bpg = new
 
     @abstractmethod
+    def local_search(
+            self,
+            population: cp.ndarray,
+            info: cp.ndarray,
+            population_size: int,
+            gene_size: int) -> cp.ndarray:
+        ...
+
+    @abstractmethod
     def decoder(
             self,
             population: cp.ndarray,

@@ -2,7 +2,7 @@ import cupy as cp
 from typing import List
 from tqdm.autonotebook import tqdm
 from .problem import Problem
-from .kernel import crossover, crossover_mp, perturbation
+from .kernel import crossover, crossover_mp
 from colorama import Fore, Style
 
 
@@ -84,6 +84,7 @@ class BRKGA:
 
         for _ in progress_bar:
             self.step()
+            # exit(0)
 
             # Update bar
             progress_bar.set_description(
@@ -114,6 +115,14 @@ class BRKGA:
             self.__population_size,
             self.__gene_size)
 
+        # Local Search
+        decoded_population = self.__problem.local_search(
+            decoded_population,
+            self.__info,
+            self.__population_size,
+            self.__gene_size
+        )
+
         #
         output = self.__problem.fitness(
             decoded_population,
@@ -126,29 +135,6 @@ class BRKGA:
 
         if self.__maximize:
             output_index = output_index[::-1]
-
-        # Perturbation
-        arr_diff = cp.diff(output, append=[output[-1] + 1])
-        res_mask = arr_diff == 0
-        arr_diff_zero_right = cp.nonzero(res_mask)[0] + 1
-        res_mask[arr_diff_zero_right] = True
-        repeted = cp.nonzero(res_mask)[0]
-
-        if repeted.shape[0] > 0:
-            percentages = cp.random.uniform(
-                low=0, high=1,
-                size=(repeted.shape[0], self.__gene_size), dtype=cp.float32)
-            indices = cp.random.randint(
-                low=0, high=self.__gene_size,
-                size=(repeted.shape[0], self.__gene_size), dtype=cp.int32)
-
-            perturbation(
-                (repeted.shape[0],), (1,),
-                (self.__population[repeted],
-                 percentages,
-                 indices,
-                 cp.uint32(self.__gene_size),
-                 cp.float32(0.1)))
 
         #
         self.__best_value = output[output_index[0]]

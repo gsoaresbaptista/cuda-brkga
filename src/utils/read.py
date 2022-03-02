@@ -1,5 +1,6 @@
 import cupy as cp
 from typing import List, Tuple
+import re
 
 
 def read_cvrp_file(file_path: str) -> cp.ndarray:
@@ -12,6 +13,7 @@ def read_cvrp_file(file_path: str) -> cp.ndarray:
     with open(file_path, 'r') as file:
         for line in file.readlines():
             text = line.strip()
+            text = re.sub(' +', ' ', text)
             #
             if text == "NODE_COORD_SECTION":
                 coord_section = True

@@ -1,6 +1,7 @@
 import cupy as cp
 from brkga.problem import Problem
 from .kernel import fitness as fitness_function
+from .kernel import local_search as local_search_function
 
 
 class CVRPProblem(Problem):
@@ -15,6 +16,26 @@ class CVRPProblem(Problem):
             gene_size: int) -> cp.ndarray:
         #
         return cp.argsort(population).astype(cp.uint32) + 1
+
+    def local_search(
+            self,
+            population: cp.ndarray,
+            info: cp.ndarray,
+            population_size: int,
+            gene_size: int) -> cp.ndarray:
+        #
+        values = cp.zeros(population.shape, dtype=cp.uint32)
+
+        local_search_function(
+            (population_size,), (1,),
+            (population,
+             info,
+             values,
+             cp.float32(self.__max_capacity),
+             cp.uint32(gene_size)))
+
+        # return values
+        return values
 
     def fitness(
             self,
