@@ -10,8 +10,10 @@ local_search = cp.RawKernel(r'''
         return sqrt(squared(x1 - x2) + squared(y1 - y2));
     }
 
-    __device__ inline int get_route_id(int i, int pos, unsigned int* population,
-        float* info, float max_capacity, unsigned int gene_size, int start) {
+    __device__ inline int get_route_id(
+        int i, int pos, unsigned int* population,
+        float* info, float max_capacity, unsigned int gene_size,
+        int start) {
         //
         int id;
         float capacity = 0;
@@ -79,20 +81,26 @@ local_search = cp.RawKernel(r'''
         int id = 0, last_id = 0;
 
         for (int i = 0; id != -1; i++, last_id = id) {
-            id = get_route_id(cid, i, population, info, max_capacity, gene_size, last_id);
+            id = get_route_id(
+                cid, i, population, info, max_capacity,gene_size, last_id);
 
             // Optimize route
             for (int j = last_id; j < id; j++) {
                 int tmp = population[gene_size*cid + j];
-                float best = evaluate(cid, population, info, max_capacity, gene_size, last_id, id);
+                float best = evaluate(
+                    cid, population, info,
+                    max_capacity,gene_size, last_id, id);
 
                 for (int k = j; k < id; k++) {
                     population[gene_size*cid+j] = population[gene_size*cid+k];
                     population[gene_size*cid+k] = tmp;
-                    float val = evaluate(cid, population, info, max_capacity, gene_size, last_id, id);
+                    float val = evaluate(
+                        cid, population, info,
+                        max_capacity,gene_size, last_id, id);
 
                     if (val < best) {
-                        copy_solution(cid, population, output, gene_size, last_id, id);
+                        copy_solution(
+                            cid, population, output, gene_size, last_id, id);
                         best = val;
                     }
 

@@ -15,6 +15,15 @@ class KnapsackProblem(Problem):
         #
         return cp.floor(population + 0.5)
 
+    def local_search(
+            self,
+            population: cp.ndarray,
+            info: cp.ndarray,
+            population_size: int,
+            gene_size: int) -> cp.ndarray:
+        #
+        return population
+
     def fitness(
             self,
             population: cp.ndarray,
