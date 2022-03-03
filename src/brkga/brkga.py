@@ -45,7 +45,7 @@ class BRKGA:
             pe: float,
             pm: float,
             rhoe: float) -> None:
-        #
+        # Parameters
         self.__rhoe = rhoe
         self.__population_size = p
         self.__elite_population = int(p * pe)
@@ -63,7 +63,7 @@ class BRKGA:
             size=(self.__population_size, self.__gene_size),
             dtype=cp.float32)
 
-        #
+        # Cuda params
         tpb = (32, 32) if self.__info.shape[0] >= 32 else (1, 1)
         bpg = (self.__population_size // tpb[0] + 1,
                self.__gene_size // tpb[0] + 1)
@@ -79,18 +79,18 @@ class BRKGA:
             generations: int,
             verbose: bool = False,
             bar_style: str = "{l_bar}{bar:30}{r_bar}{bar:-30b}") -> None:
-        #
+        # Create a progress bar
         progress_bar = tqdm(range(generations), bar_format=bar_style)
 
         for _ in progress_bar:
             self.step()
-            # exit(0)
 
             # Update bar
             progress_bar.set_description(
                 f"Value: {self.__best_value:.4f}")
             progress_bar.update()
 
+        # Print info and results
         if verbose:
             title = Style.BRIGHT + Fore.LIGHTMAGENTA_EX
             print(Style.BRIGHT + '--------- INFO ---------')
@@ -110,6 +110,7 @@ class BRKGA:
             print(text)
 
     def step(self) -> None:
+        # Decode current population
         decoded_population = self.__problem.decoder(
             self.__population,
             self.__population_size,
@@ -123,7 +124,7 @@ class BRKGA:
             self.__gene_size
         )
 
-        #
+        # Calculate fitness for each individual
         output = self.__problem.fitness(
             decoded_population,
             self.__info,
@@ -131,16 +132,17 @@ class BRKGA:
             self.__gene_size
         )
 
+        # Sort result
         output_index = cp.argsort(output)
 
         if self.__maximize:
             output_index = output_index[::-1]
 
-        #
+        # Save best individual
         self.__best_value = output[output_index[0]]
         self.__best_individual = self.__population[output_index[0]]
 
-        #
+        # Separate population in elites, commons and create the mutants
         elites = self.__population[output_index[:self.__elite_population]]
         commons = self.__population[output_index[self.__elite_population:]]
         mutants = cp.random.uniform(
@@ -148,12 +150,12 @@ class BRKGA:
             size=(self.__mutants_population, self.__gene_size),
             dtype=cp.float32)
 
-        #
+        # Create next population
         next_population = cp.zeros(
             shape=(self.__population_size, self.__gene_size),
             dtype=cp.float32)
 
-        #
+        # Copy current population to next
         ep = self.__elite_population
         mp = self.__mutants_population
         rp = self.__rest_population
@@ -161,7 +163,7 @@ class BRKGA:
         next_population[:ep, :] = elites
         next_population[ep:ep + mp, :] = mutants[:, :]
 
-        #
+        # Generate random numbers necessary in crossover
         percentages = cp.random.uniform(
             low=0, high=1,
             size=(rp, self.__gene_size),
@@ -169,7 +171,7 @@ class BRKGA:
 
         output = cp.zeros((rp, self.__gene_size), dtype=cp.float32)
 
-        #
+        # Process the indexes used in crossover
         elites_idx = cp.random.choice(elites.shape[0], rp, True)
 
         if not self.__mp:
@@ -191,6 +193,6 @@ class BRKGA:
                  cp.uint32(self.__rest_population),
                  cp.float32(self.__rhoe)))
 
-        #
+        # Added the new commons from the crossover process to next population
         next_population[ep + mp:, :] = output
         self.__population = next_population
