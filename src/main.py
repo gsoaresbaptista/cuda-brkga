@@ -15,9 +15,11 @@ if __name__ == "__main__":
     parser.add_argument("-g", "--generations", default=300, type=int)
     parser.add_argument("-p", "--population_size", default=1000, type=int)
     parser.add_argument("-pe", "--elite_percentage", default=0.2, type=float)
-    parser.add_argument("-pm", "--mutants_percentage", default=0.1, type=float)
+    parser.add_argument("-pm", "--mutants_percentage", default=0.2, type=float)
     parser.add_argument("-re", "--rhoe", default=0.7, type=float)
     parser.add_argument("-mp", "--multiparent", type=bool, default=False)
+    parser.add_argument("-pit", "--pi_total", default=10, type=int)
+    parser.add_argument("-pie", "--pi_elite", default=5, type=int)
     parser.add_argument("--seed", type=int)
     args = parser.parse_args()
 
@@ -53,7 +55,9 @@ if __name__ == "__main__":
             args.population_size,
             args.elite_percentage,
             args.mutants_percentage,
-            args.rhoe)
+            args.rhoe,
+            args.pi_total,
+            args.pi_elite)
         brkga.fit_input(infos)
         brkga.run(args.generations, verbose=True)
     else:

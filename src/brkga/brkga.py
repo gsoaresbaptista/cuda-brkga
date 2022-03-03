@@ -2,7 +2,7 @@ import cupy as cp
 from typing import List
 from tqdm.autonotebook import tqdm
 from .problem import Problem
-from .kernel import crossover, crossover_mp
+from .kernel import crossover, crossover_mp, shuffle_params
 from colorama import Fore, Style
 
 
@@ -29,6 +29,10 @@ class BRKGA:
         self.__gene_size = gene_size
         self.__mp = mp
 
+    def __phi_function(self, ranks: cp.ndarray) -> cp.ndarray:
+        return 1/(ranks)
+        # return cp.exp(ranks)**-1
+
     @property
     def best_value(self) -> float:
         return self.__best_value
@@ -44,13 +48,17 @@ class BRKGA:
             self, p: int,
             pe: float,
             pm: float,
-            rhoe: float) -> None:
+            rhoe: float,
+            pi_total: int,
+            pi_elite: int) -> None:
         # Parameters
         self.__rhoe = rhoe
         self.__population_size = p
         self.__elite_population = int(p * pe)
         self.__mutants_population = int(p * pm)
         self.__rest_population = int(p * (1.0 - pe - pm))
+        self.__pi_total = pi_total
+        self.__pi_elite = pi_elite
 
     def fit_input(self, info: List) -> None:
         if self.__rhoe == 0.0:
@@ -169,25 +177,13 @@ class BRKGA:
             size=(rp, self.__gene_size),
             dtype=cp.float32)
 
-        output = cp.zeros((rp, self.__gene_size), dtype=cp.float32)
-
-        # Process the indexes used in crossover
-        elites_idx = cp.random.choice(elites.shape[0], rp, True)
-
         if not self.__mp:
-            crossover_function = crossover
+            # Crossover without multi-parent
+            elites_idx = cp.random.choice(elites.shape[0], rp, True)
             commons_idx = cp.random.choice(commons.shape[0], rp, False)
-        else:
-            crossover_function = crossover_mp
-            commons_idx = cp.concatenate((
-                cp.random.choice(commons.shape[0], rp, False),
-                cp.random.choice(commons.shape[0], rp, False)))
+            output = cp.zeros((rp, self.__gene_size), dtype=cp.float32)
 
-            # print(commons_idx.shape)
-            # print(commons_idx.dtype)
-            # exit(0)
-
-        crossover_function(
+            crossover(
                 self.__bpg, self.__tpb,
                 (percentages,
                  commons,
@@ -197,6 +193,44 @@ class BRKGA:
                  output,
                  cp.uint32(self.__gene_size),
                  cp.float32(self.__rhoe)))
+        else:
+            # Crossover with multi-parent
+            output = cp.zeros((rp, self.__gene_size), dtype=cp.float32)
+
+            # Random choice of parents
+            chosen_elites = cp.random.choice(
+                elites.shape[0], (rp, self.__pi_elite))
+            chosen_commons = cp.random.choice(
+                commons.shape[0], (rp, self.__pi_total - self.__pi_elite))
+
+            # Calculate individual ranks
+            chosen_elites_ranks = chosen_elites + 1
+            chosen_commons_ranks = chosen_commons + self.__elite_population
+            ranks = cp.concatenate((
+                chosen_elites_ranks, chosen_commons_ranks), axis=1)
+            weight = self.__phi_function(ranks)
+            weight = cp.divide(weight.T, cp.sum(weight, axis=1)) \
+                       .T.astype(cp.float32)
+
+            # Create output arrays of shuffle process
+            indices = cp.concatenate((chosen_elites, chosen_commons_ranks),
+                                     axis=1).astype(cp.uint32)
+            c_indices = cp.zeros(indices.shape, dtype=cp.uint32)
+            c_weights = cp.zeros(weight.shape, dtype=cp.float32)
+            p = cp.random.randint(0, self.__pi_total,
+                                  (rp, self.__pi_total), dtype=cp.uint32)
+
+            # Shuffle the parameters for better parent selection
+            shuffle_params((rp,), (1,), (indices, c_indices,
+                           weight, c_weights, p, cp.uint32(self.__pi_total)))
+
+            # Process multi-parent crossover
+            crossover_mp((rp,), (1,), (
+                c_indices, c_weights,
+                cp.random.random((rp, self.__gene_size), dtype=cp.float32),
+                self.__population[output_index],
+                output, cp.uint32(self.__gene_size),
+                cp.uint32(self.__pi_total)))
 
         # Added the new commons from the crossover process to next population
         next_population[ep + mp:, :] = output
