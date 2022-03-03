@@ -183,14 +183,19 @@ class BRKGA:
                 cp.random.choice(commons.shape[0], rp, False),
                 cp.random.choice(commons.shape[0], rp, False)))
 
+            # print(commons_idx.shape)
+            # print(commons_idx.dtype)
+            # exit(0)
+
         crossover_function(
                 self.__bpg, self.__tpb,
                 (percentages,
-                 commons[commons_idx],
-                 elites[elites_idx],
+                 commons,
+                 commons_idx,
+                 elites,
+                 elites_idx,
                  output,
                  cp.uint32(self.__gene_size),
-                 cp.uint32(self.__rest_population),
                  cp.float32(self.__rhoe)))
 
         # Added the new commons from the crossover process to next population
