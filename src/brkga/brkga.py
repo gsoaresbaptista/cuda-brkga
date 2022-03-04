@@ -1,5 +1,6 @@
+from types import FunctionType
 import cupy as cp
-from typing import List
+from typing import Callable, List
 from tqdm.autonotebook import tqdm
 from .problem import Problem
 from .kernel import crossover, crossover_mp, shuffle_params
@@ -19,15 +20,26 @@ class BRKGA:
         self.__mutants_population = 0
         self.__rest_population = 0
         self.__rhoe = 0.0
-        self.__info = cp.zeros(0, dtype=cp.float32)
-        self.__population = cp.zeros(0, dtype=cp.float32)
+        self.__info: cp.ndarray = None
+        self.__population: cp.ndarray = None
         self.__maximize = maximize
+        self.__comparision_solution = self.__update_best()
         self.__tpb = (0, 0)
         self.__bpg = (0, 0)
         self.__best_value = 0
         self.__best_individual = None
         self.__gene_size = gene_size
         self.__mp = mp
+        # TODO: Alterar
+        self.__Ip = 3
+        self.__Ii = 2
+        self.__Ig = 100
+
+    def __update_best(self) -> Callable:
+        if self.__maximize:
+            return (lambda x: self.__best_value == 0 or x > self.__best_value)
+        else:
+            return (lambda x: self.__best_value == 0 or x < self.__best_value)
 
     def __phi_function(self, ranks: cp.ndarray) -> cp.ndarray:
         return 1/(ranks)
@@ -68,7 +80,7 @@ class BRKGA:
         self.__info = cp.array(info, dtype=cp.float32)
         self.__population = cp.random.uniform(
             low=0, high=1,
-            size=(self.__population_size, self.__gene_size),
+            size=(self.__Ip, self.__population_size, self.__gene_size),
             dtype=cp.float32)
 
         # Cuda params
@@ -90,8 +102,18 @@ class BRKGA:
         # Create a progress bar
         progress_bar = tqdm(range(generations), bar_format=bar_style)
 
-        for _ in progress_bar:
-            self.step()
+        for generation in progress_bar:
+            for i in range(self.__Ip):
+                self.step(i)
+
+            if (generation != 0) and (generation % self.__Ig):
+                for i in range(self.__Ip):
+                    if i == self.__Ip - 1:
+                        self.__population[i, -self.__Ii:, :] = \
+                            self.__population[0, :self.__Ii, :]
+                    else:
+                        self.__population[i, -self.__Ii:, :] = \
+                            self.__population[i + 1, :self.__Ii, :]
 
             # Update bar
             progress_bar.set_description(
@@ -117,10 +139,10 @@ class BRKGA:
             text += f"  {float(elapsed):.4f} seconds"
             print(text)
 
-    def step(self) -> None:
+    def step(self, population_id: int) -> None:
         # Decode current population
         decoded_population = self.__problem.decoder(
-            self.__population,
+            self.__population[population_id],
             self.__population_size,
             self.__gene_size)
 
@@ -147,12 +169,16 @@ class BRKGA:
             output_index = output_index[::-1]
 
         # Save best individual
-        self.__best_value = output[output_index[0]]
-        self.__best_individual = self.__population[output_index[0]]
+        if self.__comparision_solution(output[output_index[0]]):
+            self.__best_value = output[output_index[0]]
+            self.__best_individual = \
+                self.__population[population_id][output_index[0]]
 
         # Separate population in elites, commons and create the mutants
-        elites = self.__population[output_index[:self.__elite_population]]
-        commons = self.__population[output_index[self.__elite_population:]]
+        elites = self.__population[
+            population_id, output_index[:self.__elite_population]]
+        commons = self.__population[
+            population_id, output_index[self.__elite_population:]]
         mutants = cp.random.uniform(
             low=0, high=1,
             size=(self.__mutants_population, self.__gene_size),
@@ -228,10 +254,10 @@ class BRKGA:
             crossover_mp((rp,), (1,), (
                 c_indices, c_weights,
                 cp.random.random((rp, self.__gene_size), dtype=cp.float32),
-                self.__population[output_index],
+                self.__population[population_id][output_index],
                 output, cp.uint32(self.__gene_size),
                 cp.uint32(self.__pi_total)))
 
         # Added the new commons from the crossover process to next population
         next_population[ep + mp:, :] = output
-        self.__population = next_population
+        self.__population[population_id] = next_population

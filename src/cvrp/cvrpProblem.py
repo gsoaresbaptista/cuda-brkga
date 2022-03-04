@@ -34,7 +34,6 @@ class CVRPProblem(Problem):
              cp.float32(self.__max_capacity),
              cp.uint32(gene_size)))
 
-        # return values
         return values
 
     def fitness(
