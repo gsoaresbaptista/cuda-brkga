@@ -1,4 +1,3 @@
-from types import FunctionType
 import cupy as cp
 from typing import Callable, List
 from tqdm.autonotebook import tqdm
@@ -12,6 +11,9 @@ class BRKGA:
             self,
             problem: Problem,
             gene_size: int,
+            Ip: int,
+            Ii: int,
+            Ig: int,
             mp: bool = False,
             maximize: bool = True) -> None:
         self.__problem = problem
@@ -31,9 +33,9 @@ class BRKGA:
         self.__gene_size = gene_size
         self.__mp = mp
         # TODO: Alterar
-        self.__Ip = 3
-        self.__Ii = 2
-        self.__Ig = 100
+        self.__Ip = Ip
+        self.__Ii = Ii
+        self.__Ig = Ig
 
     def __update_best(self) -> Callable:
         if self.__maximize:
@@ -106,7 +108,9 @@ class BRKGA:
             for i in range(self.__Ip):
                 self.step(i)
 
-            if (generation != 0) and (generation % self.__Ig):
+            if (self.__Ip > 1) and (generation != 0) and \
+               (generation % self.__Ig == 0):
+                # Process migration to the left island
                 for i in range(self.__Ip):
                     if i == self.__Ip - 1:
                         self.__population[i, -self.__Ii:, :] = \

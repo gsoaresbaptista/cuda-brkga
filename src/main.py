@@ -20,6 +20,9 @@ if __name__ == "__main__":
     parser.add_argument("-mp", "--multiparent", type=bool, default=False)
     parser.add_argument("-pit", "--pi_total", default=10, type=int)
     parser.add_argument("-pie", "--pi_elite", default=5, type=int)
+    parser.add_argument("-ip", "--n_populations", default=1, type=int)
+    parser.add_argument("-ii", "--n_migrations", default=2, type=int)
+    parser.add_argument("-ig", "--n_rounds", default=100, type=int)
     parser.add_argument("--seed", type=int)
     args = parser.parse_args()
 
@@ -46,7 +49,14 @@ if __name__ == "__main__":
             text += f'Failed to load {problem.__class__.__name__}!'
             print(text)
 
-        brkga = BRKGA(problem, gene_size, args.multiparent, maximize)
+        brkga = BRKGA(
+            problem,
+            gene_size,
+            args.n_populations,
+            args.n_migrations,
+            args.n_rounds,
+            args.multiparent,
+            maximize)
 
         if args.seed is not None:
             brkga.set_seed(args.seed)
