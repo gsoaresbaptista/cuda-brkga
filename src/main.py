@@ -23,6 +23,7 @@ if __name__ == "__main__":
     parser.add_argument("-ip", "--n_populations", default=1, type=int)
     parser.add_argument("-ii", "--n_migrations", default=2, type=int)
     parser.add_argument("-ig", "--n_rounds", default=100, type=int)
+    parser.add_argument("-ls", "--local_search", default=10, type=int)
     parser.add_argument("--seed", type=int)
     args = parser.parse_args()
 
@@ -36,7 +37,7 @@ if __name__ == "__main__":
             gene_size = infos.shape[0]
         elif args.problem == 'cvrp':
             max_capacity, infos = read_cvrp_file(args.input)
-            problem = CVRPProblem(max_capacity)
+            problem = CVRPProblem(max_capacity, args.local_search)
             maximize = False
             gene_size = infos.shape[0] - 1
 

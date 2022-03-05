@@ -29,7 +29,8 @@ class Problem(ABC):
             population: cp.ndarray,
             info: cp.ndarray,
             population_size: int,
-            gene_size: int) -> cp.ndarray:
+            gene_size: int,
+            generation: int) -> cp.ndarray:
         ...
 
     @abstractmethod

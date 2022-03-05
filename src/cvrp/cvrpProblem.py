@@ -5,9 +5,10 @@ from .kernel import local_search as local_search_function
 
 
 class CVRPProblem(Problem):
-    def __init__(self, max_capacity: float) -> None:
+    def __init__(self, max_capacity: float, local_search: int) -> None:
         super().__init__()
         self.__max_capacity = max_capacity
+        self.__local_search = local_search
 
     def decoder(
             self,
@@ -22,19 +23,22 @@ class CVRPProblem(Problem):
             population: cp.ndarray,
             info: cp.ndarray,
             population_size: int,
-            gene_size: int) -> cp.ndarray:
+            gene_size: int,
+            generation: int) -> cp.ndarray:
         #
-        values = cp.zeros(population.shape, dtype=cp.uint32)
+        if generation % self.__local_search == 0:
+            values = cp.zeros(population.shape, dtype=cp.uint32)
 
-        local_search_function(
-            (population_size,), (1,),
-            (population,
-             info,
-             values,
-             cp.float32(self.__max_capacity),
-             cp.uint32(gene_size)))
+            local_search_function(
+                (population_size,), (1,),
+                (population,
+                 info,
+                 values,
+                 cp.float32(self.__max_capacity),
+                 cp.uint32(gene_size)))
 
-        return values
+            return values
+        return population
 
     def fitness(
             self,

@@ -32,7 +32,6 @@ class BRKGA:
         self.__best_individual = None
         self.__gene_size = gene_size
         self.__mp = mp
-        # TODO: Alterar
         self.__Ip = Ip
         self.__Ii = Ii
         self.__Ig = Ig
@@ -101,12 +100,15 @@ class BRKGA:
             generations: int,
             verbose: bool = False,
             bar_style: str = "{l_bar}{bar:30}{r_bar}{bar:-30b}") -> None:
+        #
+        self.__apply_local_search = 0.05 * generations
+
         # Create a progress bar
         progress_bar = tqdm(range(generations), bar_format=bar_style)
 
-        for generation in progress_bar:
+        for generation, _ in enumerate(progress_bar):
             for i in range(self.__Ip):
-                self.step(i)
+                self.step(i, generation)
 
             if (self.__Ip > 1) and (generation != 0) and \
                (generation % self.__Ig == 0):
@@ -143,7 +145,7 @@ class BRKGA:
             text += f"  {float(elapsed):.4f} seconds"
             print(text)
 
-    def step(self, population_id: int) -> None:
+    def step(self, population_id: int, generation: int) -> None:
         # Decode current population
         decoded_population = self.__problem.decoder(
             self.__population[population_id],
@@ -155,7 +157,8 @@ class BRKGA:
             decoded_population,
             self.__info,
             self.__population_size,
-            self.__gene_size
+            self.__gene_size,
+            generation,
         )
 
         # Calculate fitness for each individual

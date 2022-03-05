@@ -91,6 +91,7 @@ local_search = cp.RawKernel(r'''
                     cid, population, info,
                     max_capacity,gene_size, last_id, id);
 
+                // Swap
                 for (int k = j; k < id; k++) {
                     population[gene_size*cid+j] = population[gene_size*cid+k];
                     population[gene_size*cid+k] = tmp;
@@ -106,6 +107,28 @@ local_search = cp.RawKernel(r'''
 
                     population[gene_size*cid+k] = population[gene_size*cid+j];
                     population[gene_size*cid+j] = tmp;
+                }
+
+                // 2-opt
+                for (int k = j + 2; k < id; k++) {
+                    tmp = population[gene_size*cid + j + 1];
+                    population[gene_size*cid+j+1] =
+                        population[gene_size*cid+k];
+
+                    population[gene_size*cid+k] = tmp;
+
+                    float val = evaluate(
+                        cid, population, info,
+                        max_capacity,gene_size, last_id, id);
+
+                    if (val < best) {
+                        copy_solution(
+                            cid, population, output, gene_size, last_id, id);
+                        best = val;
+                    }
+
+                    population[gene_size*cid+k] = population[gene_size*cid+j+1];
+                    population[gene_size*cid+j+1] = tmp;
                 }
             }
         }
