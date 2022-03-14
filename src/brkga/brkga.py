@@ -2,8 +2,9 @@ import cupy as cp
 from typing import Callable, List
 from tqdm.autonotebook import tqdm
 from .problem import Problem
-from .kernel import crossover, crossover_mp, shuffle_params
+from .kernel import crossover, crossover_mp, shuffle_params, perturbation
 from colorama import Fore, Style
+import time
 
 
 class BRKGA:
@@ -35,6 +36,21 @@ class BRKGA:
         self.__Ip = Ip
         self.__Ii = Ii
         self.__Ig = Ig
+        self.__no_improvement = 0
+        self.__running_time = 0.0
+
+    def to_csv(self, file_path: str) -> None:
+        with open(file_path, 'a') as file:
+            params_dict = {
+                'instance': self.__problem.name,
+                'population total': self.__population_size,
+                'population elites': self.__elite_population,
+                'population mutants': self.__mutants_population,
+                'best value': self.__best_value,
+                'time': self.__running_time,
+            }
+
+            file.write(','.join(str(x) for x in params_dict.values()) + '\n')
 
     def __update_best(self) -> Callable:
         if self.__maximize:
@@ -44,7 +60,6 @@ class BRKGA:
 
     def __phi_function(self, ranks: cp.ndarray) -> cp.ndarray:
         return 1/(ranks)
-        # return cp.exp(ranks)**-1
 
     @property
     def best_value(self) -> float:
@@ -100,11 +115,14 @@ class BRKGA:
             generations: int,
             verbose: bool = False,
             bar_style: str = "{l_bar}{bar:30}{r_bar}{bar:-30b}") -> None:
-        #
-        self.__apply_local_search = 0.05 * generations
-
         # Create a progress bar
-        progress_bar = tqdm(range(generations), bar_format=bar_style)
+        if verbose:
+            progress_bar = tqdm(range(generations), bar_format=bar_style)
+        else:
+            progress_bar = range(generations)
+
+        start_time = time.time()
+        breaked = False
 
         for generation, _ in enumerate(progress_bar):
             for i in range(self.__Ip):
@@ -121,10 +139,21 @@ class BRKGA:
                         self.__population[i, -self.__Ii:, :] = \
                             self.__population[i + 1, :self.__Ii, :]
 
+            dt = time.time() - start_time
+
+            if (self.__no_improvement >= 300 and dt > 180) or (dt >= 300):
+                self.__running_time = dt
+                breaked = True
+                break
+
+            if not breaked:
+                self.__running_time = time.time() - start_time
+
             # Update bar
-            progress_bar.set_description(
-                f"Value: {self.__best_value:.4f}")
-            progress_bar.update()
+            if verbose:
+                progress_bar.set_description(
+                    f"Value: {self.__best_value:.4f}")
+                progress_bar.update()
 
         # Print info and results
         if verbose:
@@ -174,6 +203,35 @@ class BRKGA:
 
         if self.__maximize:
             output_index = output_index[::-1]
+
+        # Perturbation
+        arr_diff = cp.diff(output, append=[output[-1] + 1])
+        res_mask = arr_diff == 0
+        arr_diff_zero_right = cp.nonzero(res_mask)[0] + 1
+        res_mask[arr_diff_zero_right] = True
+        repeted = cp.nonzero(res_mask)[0]
+
+        if repeted.shape[0] > 0:
+            percentages = cp.random.uniform(
+                low=0, high=1,
+                size=(repeted.shape[0], self.__gene_size), dtype=cp.float32)
+            indices = cp.random.randint(
+                low=0, high=self.__gene_size,
+                size=(repeted.shape[0], self.__gene_size), dtype=cp.int32)
+
+            perturbation(
+                (repeted.shape[0],), (1,),
+                (self.__population[repeted],
+                    percentages,
+                    indices,
+                    cp.uint32(self.__gene_size),
+                    cp.float32(0.1)))
+
+        #
+        if output[output_index[0]] > self.__best_value:
+            self.__no_improvement = 0
+        else:
+            self.__no_improvement += 1
 
         # Save best individual
         if self.__comparision_solution(output[output_index[0]]):

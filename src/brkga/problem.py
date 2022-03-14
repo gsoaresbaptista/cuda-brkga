@@ -1,11 +1,16 @@
 from typing import Tuple
 import cupy as cp
 from abc import ABC, abstractmethod
+import os
 
 
 class Problem(ABC):
-    def __init__(self) -> None:
-        ...
+    def __init__(self, file_path) -> None:
+        self.__name = os.path.splitext(os.path.basename(file_path))[0]
+
+    @property
+    def name(self) -> str:
+        return self.__name
 
     @property
     def tpb(self) -> Tuple[int, int]:
@@ -23,7 +28,6 @@ class Problem(ABC):
     def bpg(self, new: Tuple[int, int]) -> None:
         self.__bpg = new
 
-    @abstractmethod
     def local_search(
             self,
             population: cp.ndarray,
@@ -31,7 +35,16 @@ class Problem(ABC):
             population_size: int,
             gene_size: int,
             generation: int) -> cp.ndarray:
-        ...
+        return population
+
+    def shaking(
+            self,
+            population: cp.ndarray,
+            info: cp.ndarray,
+            population_size: int,
+            gene_size: int,
+            generation: int) -> cp.ndarray:
+        return population
 
     @abstractmethod
     def decoder(

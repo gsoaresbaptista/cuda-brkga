@@ -1,0 +1,5 @@
+colorama==0.4.4
+cupy==10.2.0
+cupy_cuda101==9.6.0
+decoder==0.5
+tqdm==4.62.3

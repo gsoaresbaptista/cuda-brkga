@@ -5,8 +5,8 @@ from .kernel import local_search as local_search_function
 
 
 class CVRPProblem(Problem):
-    def __init__(self, max_capacity: float, local_search: int) -> None:
-        super().__init__()
+    def __init__(self, max_capacity: float, local_search: int, file_path: str) -> None:
+        super().__init__(file_path)
         self.__max_capacity = max_capacity
         self.__local_search = local_search
 

@@ -12,13 +12,12 @@ local_search = cp.RawKernel(r'''
 
     __device__ inline int get_route_id(
         int i, int pos, unsigned int* population,
-        float* info, float max_capacity, unsigned int gene_size,
-        int start) {
+        float* info, float max_capacity, unsigned int gene_size) {
         //
         int id;
         float capacity = 0;
 
-        for (int j = start; j < gene_size; j++) {
+        for (int j = 0; j < gene_size; j++) {
             id = population[gene_size*i + j];
 
             if (capacity + info[id*3 + 2] < max_capacity) {
@@ -31,8 +30,7 @@ local_search = cp.RawKernel(r'''
     }
 
     __device__ inline float evaluate(int i, unsigned int* population,
-        float* info, float max_capacity, unsigned int gene_size,
-        int start, int end) {
+        float* info, float max_capacity, unsigned int gene_size) {
         //
         float fx = info[0], fy = info[1];
         float lx = info[0], ly = info[1];
@@ -41,7 +39,7 @@ local_search = cp.RawKernel(r'''
         int id;
         float x, y;
 
-        for (int j = start; j < end; j++) {
+        for (int j = 0; j < gene_size; j++) {
             id = population[gene_size*i + j];
             x = info[id*3], y = info[id*3 + 1];
 
@@ -62,9 +60,9 @@ local_search = cp.RawKernel(r'''
 
     __device__ inline void copy_solution(int i,
             unsigned int* population, unsigned int* output,
-            unsigned int gene_size, int start, int end) {
+            unsigned int gene_size) {
         //
-        for (int j = start; j < end; j++) {
+        for (int j = 0; j < gene_size; j++) {
             output[gene_size*i + j] = population[gene_size*i + j];
         }
     }
@@ -75,61 +73,50 @@ local_search = cp.RawKernel(r'''
             float max_capacity, unsigned int gene_size) {
         //
         int cid = blockDim.x * blockIdx.x + threadIdx.x;
-        copy_solution(cid, population, output, gene_size, 0, gene_size);
+        copy_solution(cid, population, output, gene_size);
 
-        // Split routes
-        int id = 0, last_id = 0;
+        // Optimize route
+        for (int j = 0; j < gene_size; j++) {
+            int tmp = population[gene_size*cid + j];
 
-        for (int i = 0; id != -1; i++, last_id = id) {
-            id = get_route_id(
-                cid, i, population, info, max_capacity,gene_size, last_id);
+            float best = evaluate(
+                cid, population, info, max_capacity,gene_size);
 
-            // Optimize route
-            for (int j = last_id; j < id; j++) {
-                int tmp = population[gene_size*cid + j];
-                float best = evaluate(
-                    cid, population, info,
-                    max_capacity,gene_size, last_id, id);
+            // Swap
+            for (int k = j; k < gene_size; k++) {
+                population[gene_size*cid+j] = population[gene_size*cid+k];
+                population[gene_size*cid+k] = tmp;
 
-                // Swap
-                for (int k = j; k < id; k++) {
-                    population[gene_size*cid+j] = population[gene_size*cid+k];
-                    population[gene_size*cid+k] = tmp;
-                    float val = evaluate(
-                        cid, population, info,
-                        max_capacity,gene_size, last_id, id);
+                float val = evaluate(
+                    cid, population, info, max_capacity,gene_size);
 
-                    if (val < best) {
-                        copy_solution(
-                            cid, population, output, gene_size, last_id, id);
-                        best = val;
-                    }
-
-                    population[gene_size*cid+k] = population[gene_size*cid+j];
-                    population[gene_size*cid+j] = tmp;
+                if (val < best) {
+                    copy_solution(cid, population, output, gene_size);
+                    best = val;
                 }
 
-                // 2-opt
-                for (int k = j + 2; k < id; k++) {
-                    tmp = population[gene_size*cid + j + 1];
-                    population[gene_size*cid+j+1] =
-                        population[gene_size*cid+k];
+                population[gene_size*cid+k] = population[gene_size*cid+j];
+                population[gene_size*cid+j] = tmp;
+            }
 
-                    population[gene_size*cid+k] = tmp;
+            // 2-opt
+            for (int k = j + 2; k < gene_size; k++) {
+                tmp = population[gene_size*cid + j + 1];
+                population[gene_size*cid+j+1] =
+                    population[gene_size*cid+k];
 
-                    float val = evaluate(
-                        cid, population, info,
-                        max_capacity,gene_size, last_id, id);
+                population[gene_size*cid+k] = tmp;
 
-                    if (val < best) {
-                        copy_solution(
-                            cid, population, output, gene_size, last_id, id);
-                        best = val;
-                    }
+                float val = evaluate(
+                    cid, population, info, max_capacity,gene_size);
 
-                    population[gene_size*cid+k] = population[gene_size*cid+j+1];
-                    population[gene_size*cid+j+1] = tmp;
+                if (val < best) {
+                    copy_solution(cid, population, output, gene_size);
+                    best = val;
                 }
+
+                population[gene_size*cid+k] = population[gene_size*cid+j+1];
+                population[gene_size*cid+j+1] = tmp;
             }
         }
     }

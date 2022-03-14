@@ -1,5 +1,6 @@
 import os
 import argparse
+from tabnanny import verbose
 from brkga import BRKGA
 from brkga.problem import Problem
 from cvrp import CVRPProblem
@@ -12,14 +13,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("problem", choices=["knapsack", "cvrp"], type=str)
     parser.add_argument("input", type=str)
+    parser.add_argument("-verb", "--verbose", action="store_true")
+    parser.add_argument("-out", "--output", default=None, type=str)
     parser.add_argument("-g", "--generations", default=300, type=int)
     parser.add_argument("-p", "--population_size", default=1000, type=int)
     parser.add_argument("-pe", "--elite_percentage", default=0.2, type=float)
-    parser.add_argument("-pm", "--mutants_percentage", default=0.2, type=float)
+    parser.add_argument("-pm", "--mutants_percentage", default=0.3, type=float)
     parser.add_argument("-re", "--rhoe", default=0.7, type=float)
     parser.add_argument("-mp", "--multiparent", type=bool, default=False)
     parser.add_argument("-pit", "--pi_total", default=10, type=int)
-    parser.add_argument("-pie", "--pi_elite", default=5, type=int)
+    parser.add_argument("-pie", "--pi_elite", default=4, type=int)
     parser.add_argument("-ip", "--n_populations", default=1, type=int)
     parser.add_argument("-ii", "--n_migrations", default=2, type=int)
     parser.add_argument("-ig", "--n_rounds", default=100, type=int)
@@ -37,18 +40,18 @@ if __name__ == "__main__":
             gene_size = infos.shape[0]
         elif args.problem == 'cvrp':
             max_capacity, infos = read_cvrp_file(args.input)
-            problem = CVRPProblem(max_capacity, args.local_search)
+            problem = CVRPProblem(max_capacity, args.local_search, args.input)
             maximize = False
             gene_size = infos.shape[0] - 1
 
         try:
             text = Fore.GREEN + "Success: " + Style.RESET_ALL
             text += f'Loaded the {problem.__class__.__name__}!'
-            print(text)
+            if args.verbose:
+                print(text)
         except Exception:
             text = Fore.RED + "Error: " + Style.RESET_ALL
             text += f'Failed to load {problem.__class__.__name__}!'
-            print(text)
 
         brkga = BRKGA(
             problem,
@@ -70,6 +73,9 @@ if __name__ == "__main__":
             args.pi_total,
             args.pi_elite)
         brkga.fit_input(infos)
-        brkga.run(args.generations, verbose=True)
+        brkga.run(args.generations, verbose=args.verbose)
+
+        if args.output is not None:
+            brkga.to_csv(args.output)
     else:
         raise Exception('File not exist.')
